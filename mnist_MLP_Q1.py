@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+from sklearn.metrics import confusion_matrix
+from logger import log_results   # Added for CSV logging
 
 # Confirm GPU availability
 print("CUDA available:", torch.cuda.is_available())
@@ -66,7 +68,6 @@ class MLP(nn.Module):
         return F.log_softmax(x, dim=1)
 
 model = MLP(input_size, hidden_size, num_classes).to(device)
-
 criterion = nn.NLLLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -123,20 +124,23 @@ with torch.no_grad():
         outputs = model(flat)
         _, predicted = torch.max(outputs.data, 1)
 
-        # For accuracy
+        # accuracy
         n_correct += (predicted == labels).sum().item()
         n_samples += labels.size(0)
 
-        # For confusion matrix
+        # store predictions
         all_preds.extend(predicted.cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
 
-        # Save misclassified examples
-        mism = (predicted != labels)
+        # misclassified
+        pred_cpu = predicted.cpu()
+        labels_cpu = labels.cpu()
+        mism = (pred_cpu != labels_cpu)
+
         if mism.any():
-            mis_images.extend(images[mism].cpu())
-            mis_pred.extend(predicted[mism].cpu())
-            mis_true.extend(labels[mism].cpu())
+            mis_images.extend(images.cpu()[mism])
+            mis_pred.extend(pred_cpu[mism])
+            mis_true.extend(labels_cpu[mism])
 
 test_time = time.time() - test_start  # Added for Q1
 print(f"Test time: {test_time:.2f} seconds")  # Added for Q1
@@ -145,12 +149,23 @@ acc = 100.0 * n_correct / n_samples
 print(f"Accuracy: {acc:.2f}%")
 
 ############################################################
+# CSV LOGGING (Format A)
+############################################################
+log_results(
+    "results_MLP.csv",
+    {
+        "model": "MLP",
+        "run": 1,  # Colab loop will overwrite run number
+        "accuracy": acc,
+        "train_time": train_time,
+        "test_time": test_time
+    }
+)
+
+############################################################
 # CONFUSION MATRIX (Saved PNG Only)
 ############################################################
 os.makedirs("results", exist_ok=True)
-
-from sklearn.metrics import confusion_matrix
-
 cm = confusion_matrix(all_labels, all_preds)
 
 plt.figure(figsize=(8,6))

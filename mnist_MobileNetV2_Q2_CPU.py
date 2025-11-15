@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
-import time   # Added for Q1 timing
+# Q2: MobileNetV2 CPU-only version
+
+import time
 import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from torchvision import models
 
-# Extra imports for confusion matrix + misclassified plots
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
 from sklearn.metrics import confusion_matrix
-from logger import log_results   # Added for CSV logging
+from logger import log_results
 
-# GPU check
-print("CUDA available:", torch.cuda.is_available())
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
+# Force CPU even if GPU exists
+device = torch.device("cpu")
+print("Using CPU only")
 
 # Hyperparameters
 batch_size = 100
@@ -51,22 +51,17 @@ test_dataset = torchvision.datasets.MNIST(
     transform=transform
 )
 
-train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True
-)
-
-test_loader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=batch_size, shuffle=False
-)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 ########################################################
 # Load pretrained MobileNetV2
 ########################################################
 model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.IMAGENET1K_V1)
 
-# Freeze feature extractor (baseline for Q1)
+# Freeze feature extractor
 for param in model.features.parameters():
-    param.requires_grad = False  # Added for Q1
+    param.requires_grad = False
 
 # Replace classifier
 model.classifier[1] = nn.Linear(model.last_channel, 10)
@@ -77,15 +72,15 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.classifier.parameters(), lr=learning_rate)
 
 ########################################################
-# TRAINING LOOP (with timers for Q1)
+# TRAINING LOOP (CPU ONLY)
 ########################################################
-train_start = time.time()  # Added for Q1
+train_start = time.time()
 
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
 
-    for batch_idx, (images, labels) in enumerate(train_loader):
+    for images, labels in train_loader:
         images = images.to(device)
         labels = labels.to(device)
 
@@ -99,24 +94,20 @@ for epoch in range(num_epochs):
 
         running_loss += loss.item()
 
-        if (batch_idx + 1) % 100 == 0:
-            print(f"Epoch {epoch+1}/{num_epochs}, Step {batch_idx+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
+    print(f"Epoch {epoch+1}/{num_epochs} - Avg Loss: {running_loss/len(train_loader):.4f}")
 
-    print(f"Epoch [{epoch+1}/{num_epochs}] Avg Loss: {running_loss/len(train_loader):.4f}")
-
-train_time = time.time() - train_start  # Added for Q1
-print(f"Training time: {train_time:.2f} seconds")
+train_time = time.time() - train_start
+print(f"CPU Training time: {train_time:.2f} seconds")
 
 ########################################################
-# TESTING LOOP (with timers for Q1)
+# TESTING LOOP (CPU ONLY)
 ########################################################
-test_start = time.time()  # Added for Q1
+test_start = time.time()
 
 model.eval()
 correct = 0
 total = 0
 
-# For confusion matrix + misclassified samples
 all_preds = []
 all_labels = []
 mis_images = []
@@ -131,37 +122,36 @@ with torch.no_grad():
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
 
-        total += labels.size(0)
         correct += (predicted == labels).sum().item()
+        total += labels.size(0)
 
-        # store predictions
-        all_preds.extend(predicted.cpu().numpy())
-        all_labels.extend(labels.cpu().numpy())
-
-        # misclassified (safe CPU mask)
+        # logging predictions
         pred_cpu = predicted.cpu()
         labels_cpu = labels.cpu()
-        mism = (pred_cpu != labels_cpu)
 
+        all_preds.extend(pred_cpu.numpy())
+        all_labels.extend(labels_cpu.numpy())
+
+        mism = (pred_cpu != labels_cpu)
         if mism.any():
             mis_images.extend(images.cpu()[mism])
             mis_pred.extend(pred_cpu[mism])
             mis_true.extend(labels_cpu[mism])
 
-test_time = time.time() - test_start  # Added for Q1
-print(f"Test time: {test_time:.2f} seconds")  # Added for Q1
+test_time = time.time() - test_start
+print(f"CPU Test time: {test_time:.2f} seconds")
 
 acc = 100.0 * correct / total
-print(f"Accuracy: {acc:.2f}%")
+print(f"CPU Accuracy: {acc:.2f}%")
 
 ############################################################
 # CSV LOGGING (Format A)
 ############################################################
 log_results(
-    "results_MobileNetV2.csv",
+    "results_MobileNetV2_CPU.csv",
     {
-        "model": "MobileNetV2",
-        "run": 1,  # Updated externally in Colab loop
+        "model": "MobileNetV2_CPU",
+        "run": 1,  # Colab loop will update
         "accuracy": acc,
         "train_time": train_time,
         "test_time": test_time
@@ -177,10 +167,10 @@ cm = confusion_matrix(all_labels, all_preds)
 
 plt.figure(figsize=(8,6))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-plt.title("Confusion Matrix - MobileNetV2")
+plt.title("Confusion Matrix - MobileNetV2 CPU")
 plt.xlabel("Predicted")
 plt.ylabel("True")
-plt.savefig("results/cm_MobileNetV2.png", dpi=200)
+plt.savefig("results/cm_MobileNetV2_CPU.png", dpi=200)
 plt.close()
 
 ############################################################
@@ -191,15 +181,12 @@ plt.figure(figsize=(10,10))
 
 for i in range(num_to_show):
     plt.subplot(4,4,i+1)
-
-    # remove normalization for visualization
-    img = mis_images[i].permute(1, 2, 0).numpy()
-    img = img[:,:,0]   # channel 0 (MNIST grayscale)
-
+    img = mis_images[i].permute(1,2,0).numpy()
+    img = img[:,:,0]
     plt.imshow(img, cmap="gray")
     plt.title(f"P:{mis_pred[i]} / T:{mis_true[i]}")
     plt.axis("off")
 
-plt.suptitle("Misclassified Samples - MobileNetV2")
-plt.savefig("results/misclassified_MobileNetV2.png", dpi=200)
+plt.suptitle("Misclassified Samples - MobileNetV2 CPU")
+plt.savefig("results/misclassified_MobileNetV2_CPU.png", dpi=200)
 plt.close()

@@ -13,6 +13,7 @@ import seaborn as sns
 import numpy as np
 import os
 from sklearn.metrics import confusion_matrix
+from logger import log_results   # Added for CSV logging
 
 # Confirm GPU availability
 print("CUDA available:", torch.cuda.is_available())
@@ -142,12 +143,15 @@ with torch.no_grad():
         all_preds.extend(predicted.cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
 
-        # misclassified samples
-        mism = (predicted != labels)
+        # misclassified
+        pred_cpu = predicted.cpu()
+        labels_cpu = labels.cpu()
+        mism = (pred_cpu != labels_cpu)
+
         if mism.any():
-            mis_images.extend(images[mism].cpu())
-            mis_pred.extend(predicted[mism].cpu())
-            mis_true.extend(labels[mism].cpu())
+            mis_images.extend(images.cpu()[mism])
+            mis_pred.extend(pred_cpu[mism])
+            mis_true.extend(labels_cpu[mism])
 
 test_time = time.time() - test_start   # Added for Q1
 print(f"Test time: {test_time:.2f} seconds")   # Added for Q1
@@ -156,10 +160,23 @@ acc = 100.0 * n_correct / n_samples
 print(f"Accuracy of the network on the 10000 test images: {acc:.2f} %")
 
 ###############################################################################
+# CSV LOGGING (Format A)
+###############################################################################
+log_results(
+    "results_CNN.csv",
+    {
+        "model": "CNN",
+        "run": 1,  # Updated externally in Colab loop
+        "accuracy": acc,
+        "train_time": train_time,
+        "test_time": test_time
+    }
+)
+
+###############################################################################
 # CONFUSION MATRIX (Saved PNG Only)
 ###############################################################################
 os.makedirs("results", exist_ok=True)
-
 cm = confusion_matrix(all_labels, all_preds)
 
 plt.figure(figsize=(8,6))
