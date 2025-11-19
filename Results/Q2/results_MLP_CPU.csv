@@ -1,0 +1,2 @@
+model,run,accuracy,train_time,test_time
+MLP_CPU,1,97.01,53.143126487731934,1.4173638820648193

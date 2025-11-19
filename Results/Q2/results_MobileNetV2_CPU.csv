@@ -1,0 +1,2 @@
+model,run,accuracy,train_time,test_time
+MobileNetV2_CPU,1,96.13,19462.934190750122,862.3921220302582

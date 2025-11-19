@@ -1,0 +1,2 @@
+model,run,accuracy,train_time,test_time
+CNN_CPU,1,98.93,272.2763431072235,5.603815317153931
