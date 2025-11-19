@@ -155,7 +155,7 @@ acc = 100.0 * correct / total
 print(f"Accuracy: {acc:.2f}%")
 
 ############################################################
-# CSV LOGGING (Format A)
+# CSV LOGGING
 ############################################################
 log_results(
     "results_MobileNetV2.csv",

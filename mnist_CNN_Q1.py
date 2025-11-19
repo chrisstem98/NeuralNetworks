@@ -160,7 +160,7 @@ acc = 100.0 * n_correct / n_samples
 print(f"Accuracy of the network on the 10000 test images: {acc:.2f} %")
 
 ###############################################################################
-# CSV LOGGING (Format A)
+# CSV LOGGING
 ###############################################################################
 log_results(
     "results_CNN.csv",

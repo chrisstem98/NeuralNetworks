@@ -149,7 +149,7 @@ acc = 100.0 * n_correct / n_samples
 print(f"Accuracy: {acc:.2f}%")
 
 ############################################################
-# CSV LOGGING (Format A)
+# CSV LOGGING 
 ############################################################
 log_results(
     "results_MLP.csv",
