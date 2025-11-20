@@ -1,0 +1,2 @@
+hidden_size,dropout,val_accuracy
+800,0.3,97.83333333
